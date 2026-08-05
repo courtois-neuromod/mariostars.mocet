@@ -3,11 +3,10 @@ name = "mario-mocet"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "datalad>=1.6.1",
     "mocet",
-    "numpy>=2.5.1",
 ]
 
 [tool.uv.sources]
