@@ -42,9 +42,9 @@ def main():
             if not read:
                 break
             count += 1
-            target_filename = f'recording-eyetracking_physio_log.csv'
-            print('okey dockey')
-            df.to_csv(target_filename, index=False) # update the path to the output folders
+        target_filename = f'recording-eyetracking_physio_log.csv'
+        print('okey dockey')
+        df.to_csv(target_filename, index=False) # update the path to the output folders
 
 '''
 The confounds file contains the following 6-DoF motion parameters:
