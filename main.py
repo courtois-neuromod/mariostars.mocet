@@ -42,7 +42,7 @@ def main():
             if not read:
                 break
             count += 1
-            target_filename = f'{filename.split('/')[-1]}_recording-eyetracking_physio_log.csv'
+            target_filename = f'recording-eyetracking_physio_log.csv'
             print('okey dockey')
             df.to_csv(target_filename, index=False) # update the path to the output folders
 
