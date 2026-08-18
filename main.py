@@ -99,9 +99,12 @@ def main(source_data):
         pldata_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
         mp4_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
 
-        if not os.path.isfile(log_fname) or os.path.isfile(pldata_fname) or os.path.isfile(mp4_fname):
+        if not os.path.isfile(log_fname) or not os.path.isfile(pldata_fname) or not os.path.isfile(mp4_fname):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
+            print(log_fname)
+            print(pldata_fname)
+            print(mp4_fname)
             pass
         #start, duration = find_time_between_rec_and_start(log_fname, run)
         #timestamps_fname = creat_data_file(pldata_fname)
