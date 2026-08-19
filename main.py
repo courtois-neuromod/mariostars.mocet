@@ -54,10 +54,10 @@ def find_time_between_rec_and_start(log_fname, run):
             if "fMRI TTL 0" in message:
                 ttl_time = timestamp
 
-            elif "starting eyetracking recording" in message:
+            elif "starting eyetracking recording" in message and ttl_time is not None:
                 eyetracking_time = timestamp
 
-            if ttl_time is not None and eyetracking_time is not None:
+            if eyetracking_time is not None:
                 print(ttl_time, eyetracking_time)
                 delay = ttl_time - eyetracking_time
                 delays.append(delay)
