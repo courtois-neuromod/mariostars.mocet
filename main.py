@@ -51,14 +51,14 @@ def find_time_between_rec_and_start(log_fname, run):
             timestamp = float(parts[0])
             message = parts[2]
 
-            if "fMRI TTL" in message:
+            if "fMRI TTL 0" in message:
                 ttl_time = timestamp
 
             elif "starting eyetracking recording" in message:
                 eyetracking_time = timestamp
 
             if ttl_time is not None and eyetracking_time is not None:
-                delay = eyetracking_time - ttl_time
+                delay = ttl_time - eyetracking_time
                 delays.append(delay)
                 ttl_time = None
                 eyetracking_time = None
@@ -128,7 +128,7 @@ def main(source_data):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
             continue
-
+        print(sub, ses, run, file_nb)
         start, duration = find_time_between_rec_and_start(log_fname, run)
         #timestamps_fname = creat_data_file(pldata_fname)
         #_, data_fname = get_pupils_data_from_mp4(mp4_fname)
