@@ -39,11 +39,11 @@ def select_run_from_qc(qc_fname):
 
 def find_delays_and_durations(log_fname):
 
-    delays = []
-    recording_durations = []
+    results = {}
     ttl_time = None
     eyetracking_start = None
     eyetracking_stop = None
+    run = None
 
     with open(log_fname, "r") as f:
         for line in f:
@@ -63,20 +63,22 @@ def find_delays_and_durations(log_fname):
 
             elif "stopping eyetracking recording" in message and eyetracking_start is not None:
                 eyetracking_stop = timestamp
+            
+            elif "task - <class 'src.tasks.videogame.VideoGameMultiLevel'> :" in message and eyetracking_stop is not None:
+                run = message.split('_')[1][0:6]
 
-            if eyetracking_stop is not None:
+            if run is not None:
 
                 delay = eyetracking_start - ttl_time
-                delays.append(delay)
-
                 duration = eyetracking_stop - eyetracking_start
-                recording_durations.append(duration)
-
+                results[run] = {'delay': delay, 'duration': duration}
+                
                 ttl_time = None
                 eyetracking_start = None
                 eyetracking_stop = None
+                run = None
 
-    return delays, recording_durations
+    return results
 
 
 def read_pldata(pldata_fname):
@@ -152,19 +154,19 @@ def main(source_data):
         pldata_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
         mp4_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
 
-        delays, durations = None
+        delays_durations = None
 
         if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
             continue
         
-        if delays == None and durations == None:
-            delays, durations = find_delays_and_durations(log_fname)
+        if delays_durations == None:
+            delays_durations = find_delays_and_durations(log_fname)
         
-        run_idx = int(run[-1])-1
-        delay = delays[run_idx]
-        duration = durations[run_idx]
+        
+        delay = delays_durations[run]['delay']
+        duration = delays_durations[run]['duration']
 
         timestamps_fname = creat_data_file(pldata_fname)
         _, data_fname = get_pupils_data_from_mp4(mp4_fname)
