@@ -62,7 +62,8 @@ def find_time_between_rec_and_start(log_fname, run):
                 delays.append(delay)
                 ttl_time = None
                 eyetracking_time = None
-    print (delays)    
+    print (delays)
+    return 1, 2
     # Prendre le temps dans la ligne sélectionnée
     # Look for 3549331.1833 	INFO 	stopping eyetracking recording
 #3549331.1837 	EXP 	window1: waitBlanking = True
