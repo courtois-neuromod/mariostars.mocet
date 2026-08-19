@@ -36,9 +36,33 @@ def select_run_from_qc(qc_fname):
     return run_list
 
 def find_time_between_rec_and_start(log_fname, run):
-    # Open the log file
-    # Trouver le "fMRI TTL 0" il y a autant de "fMRI TTL 0" que de run dans une session
-    # Prendre la ligne qui corespond au run
+
+    delays = []
+    ttl_time = None
+    eyetracking_time = None
+
+    with open(log_fname, "r") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+
+            if len(parts) < 3:
+                continue
+
+            timestamp = float(parts[0])
+            message = parts[2]
+
+            if "fMRI TTL" in message:
+                ttl_time = timestamp
+
+            elif "starting eyetracking recording" in message:
+                eyetracking_time = timestamp
+
+            if ttl_time is not None and eyetracking_time is not None:
+                delay = eyetracking_time - ttl_time
+                delays.append(delay)
+                ttl_time = None
+                eyetracking_time = None
+    print (delays)    
     # Prendre le temps dans la ligne sélectionnée
     # Look for 3549331.1833 	INFO 	stopping eyetracking recording
 #3549331.1837 	EXP 	window1: waitBlanking = True
@@ -99,13 +123,11 @@ def main(source_data):
         pldata_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
         mp4_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
 
-        if not os.path.isfile(log_fname) or not os.path.isfile(pldata_fname) or not os.path.isfile(mp4_fname):
+        if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
-            print(log_fname)
-            print(pldata_fname)
-            print(mp4_fname)
-            pass
+            continue
+
         #start, duration = find_time_between_rec_and_start(log_fname, run)
         #timestamps_fname = creat_data_file(pldata_fname)
         #_, data_fname = get_pupils_data_from_mp4(mp4_fname)
@@ -121,6 +143,8 @@ def main(source_data):
                                #pupil_confidence=pupil_confidence, 
                                #motion_source='fmriprep',
                                #polynomial_order=3)
+
+        # save output
 
 if __name__ == "__main__":
     main(sys.argv[1])
