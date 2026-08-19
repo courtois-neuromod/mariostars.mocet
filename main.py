@@ -7,6 +7,8 @@ import cv2
 import eyerec
 import numpy as np
 import pandas as pd
+import msgpack
+
 
 # FUTURE IMPORT
 # from analysis import select_run_from_qc, find_time_between_rec_and_start, creat_data_file, get_pupils_data_from_mp4
@@ -35,11 +37,13 @@ def select_run_from_qc(qc_fname):
 
     return run_list
 
-def find_time_between_rec_and_start(log_fname, run):
+def find_delays_and_durations(log_fname):
 
     delays = []
+    recording_durations = []
     ttl_time = None
-    eyetracking_time = None
+    eyetracking_start = None
+    eyetracking_stop = None
 
     with open(log_fname, "r") as f:
         for line in f:
@@ -55,23 +59,47 @@ def find_time_between_rec_and_start(log_fname, run):
                 ttl_time = timestamp
 
             elif "starting eyetracking recording" in message and ttl_time is not None:
-                eyetracking_time = timestamp
+                eyetracking_start = timestamp
 
-            if eyetracking_time is not None:
-                delay = ttl_time - eyetracking_time
+            elif "stopping eyetracking recording" in message and eyetracking_start is not None:
+                eyetracking_stop = timestamp
+
+            if eyetracking_stop is not None:
+
+                delay = eyetracking_start - ttl_time
                 delays.append(delay)
+
+                duration = eyetracking_stop - eyetracking_start
+                recording_durations.append(duration)
+
                 ttl_time = None
-                eyetracking_time = None
-    print (delays)
-    return 1, 2
-    # Prendre le temps dans la ligne sélectionnée
-    # Look for 3549331.1833 	INFO 	stopping eyetracking recording
-#3549331.1837 	EXP 	window1: waitBlanking = True
-#3549331.2342 	EXP 	task - <class 'src.tasks.videogame.VideoGameMultiLevel'> : task-mariostars_run-01: complete
-# To compute the video duration in sec.
-    return # strat, duration
+                eyetracking_start = None
+                eyetracking_stop = None
+
+    return delays, recording_durations
+
+
+def read_pldata(pldata_fname):
+    packets = []
+    with open(pldata_fname, 'rb') as f:
+        unpacker = msgpack.Unpacker(f, raw=False, use_list=False)
+        for topic, payload in unpacker:
+            packet = msgpack.unpackb(payload, raw=False)
+            packets.append((topic, packet))
+    return packets
+
+def extract_timestamps(pldata_fname):
+    timestamps = []
+    with open(pldata_fname, 'rb') as f:
+        unpacker = msgpack.Unpacker(f, raw=False, use_list=False)
+        for topic, payload in unpacker:
+            packet = msgpack.unpackb(payload, raw=False)
+            timestamps.append(packet['timestamp'])
+    return timestamps
 
 def creat_data_file(pldata_fname):
+    timestamps = np.array(extract_timestamps(pldata_fname))
+    print(timestamps)
     # Open the pupil.pldata avec load_pladata_file de eyetrackprep
     # Extract the timestamps
     # Compute deltas between timestamps
@@ -124,18 +152,26 @@ def main(source_data):
         pldata_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
         mp4_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
 
+        delays, durations = None
+
         if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
             continue
+        
+        if delays == None and durations == None:
+            delays, durations = find_delays_and_durations(log_fname)
+        
+        run_idx = int(run[-1])-1
+        delay = delays[run_idx]
+        duration = durations[run_idx]
 
-        start, duration = find_time_between_rec_and_start(log_fname, run)
-        #timestamps_fname = creat_data_file(pldata_fname)
-        #_, data_fname = get_pupils_data_from_mp4(mp4_fname)
+        timestamps_fname = creat_data_file(pldata_fname)
+        _, data_fname = get_pupils_data_from_mp4(mp4_fname)
 
         #pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
                                                                              #timestamps_fname,
-                                                                             #start=start,
+                                                                             #start=delay,
                                                                              #duration=duration)
         
         #confounds_fname = f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv'
