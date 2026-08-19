@@ -117,7 +117,7 @@ def main(source_data):
         qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
 
     run_list = select_run_from_qc(qc_fname)
-    print(run_list)
+    
     for sub, ses, run, file_nb in run_list:
 
         log_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.log')
@@ -129,7 +129,7 @@ def main(source_data):
             print('Please complet the QC file')
             continue
 
-        #start, duration = find_time_between_rec_and_start(log_fname, run)
+        start, duration = find_time_between_rec_and_start(log_fname, run)
         #timestamps_fname = creat_data_file(pldata_fname)
         #_, data_fname = get_pupils_data_from_mp4(mp4_fname)
 
