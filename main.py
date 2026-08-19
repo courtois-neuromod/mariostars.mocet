@@ -58,6 +58,7 @@ def find_time_between_rec_and_start(log_fname, run):
                 eyetracking_time = timestamp
 
             if ttl_time is not None and eyetracking_time is not None:
+                print(ttl_time, eyetracking_time)
                 delay = ttl_time - eyetracking_time
                 delays.append(delay)
                 ttl_time = None
