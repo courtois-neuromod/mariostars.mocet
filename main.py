@@ -101,13 +101,13 @@ def extract_timestamps(pldata_fname):
 
 def creat_data_file(pldata_fname):
     timestamps = np.array(extract_timestamps(pldata_fname))
-    print(timestamps)
-    # Open the pupil.pldata avec load_pladata_file de eyetrackprep
-    # Extract the timestamps
-    # Compute deltas between timestamps
-    # Format a text file under tsv normes, with the right structure to match the code
-    # Creat the file 
-    return
+    pupil_onset_deltas = np.diff(timestamps, prepend=timestamps[0])
+    timestamps_fname = 'recording-eyetracking_timestamps.txt'
+    with open(timestamps_fname, "a") as file:
+        for delta in pupil_onset_deltas:
+            file.write(f"10\ttotal_time\t{delta}16.6679\n")
+            file.write("777\ttotal_time\tMovieFrame\n")
+    return timestamps_fname
 
 def get_pupils_data_from_mp4(mp4_fname):
     capture = cv2.VideoCapture(mp4_fname)
@@ -159,9 +159,9 @@ def main(source_data):
         if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
-            print(log_fname)
-            print(pldata_fname)
-            print(mp4_fname)
+            #print(log_fname)
+            #print(pldata_fname)
+            #print(mp4_fname)
             continue
         
         if delays_durations == None:
@@ -172,13 +172,14 @@ def main(source_data):
         duration = delays_durations[run]['duration']
 
         timestamps_fname = creat_data_file(pldata_fname)
+        print(timestamps_fname)
         _, data_fname = get_pupils_data_from_mp4(mp4_fname)
-
+        print(data_fname)
         #pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
                                                                              #timestamps_fname,
                                                                              #start=delay,
                                                                              #duration=duration)
-        
+                                                                             
         #confounds_fname = f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv'
         #pupil_data = mocet.apply_mocet(pupil_data, 
                                #motion_params_fname=confounds_fname, 
