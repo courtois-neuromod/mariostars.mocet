@@ -159,6 +159,9 @@ def main(source_data):
         if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
+            print(log_fname)
+            print(pldata_fname)
+            print(mp4_fname)
             continue
         
         if delays_durations == None:
