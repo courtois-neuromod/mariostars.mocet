@@ -1,6 +1,7 @@
 import os
 import sys
 import mocet
+import time
 
 # IMPORT FOR THE FUNCTIONS THAT WILL BE PLACED IN UTILS
 import cv2
@@ -140,29 +141,36 @@ def get_pupils_data_from_mp4(mp4_fname):
     df.to_csv(data_fname, index=False)
     return df, data_fname
 
-def main(source_data):
+def main(source_data_eyetracking='', source_data_fmriprep=''):
     
-    qc_fname = os.path.join(source_data, 'neuromod_eyetrack_mariostars_QC.csv')
-
-    if not os.path.isfile(qc_fname):
-        qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
+    qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
 
     run_list = select_run_from_qc(qc_fname)
     
     for sub, ses, run, file_nb in run_list:
 
-        log_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.log')
-        pldata_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
-        mp4_fname = os.path.join(source_data, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
+        start_time = time.perf_counter()
+
+        if source_data_eyetracking == '' and source_data_fmriprep == '':
+            log_fname = os.path.join('source_data', 'eyetracking', sub, ses, f'{sub}_{ses}_{file_nb}.log')
+            pldata_fname = os.path.join('source_data', 'eyetracking',sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
+            mp4_fname = os.path.join('source_data','eyetracking', sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
+            confounds_fname = os.path.join('source_data','mariostarts.fmriprep',f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv')
+        else:
+            log_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.log')
+            pldata_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
+            mp4_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
+            confounds_fname = os.path.join(source_data_fmriprep,sub, ses, 'func', f'{sub}_{ses}_task-mariostars_run-{run[-1]}_part-mag_desc-confounds_timeseries.tsv')
 
         delays_durations = None
 
-        if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname]):
+        if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname, confounds_fname]):
             print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             print('Please complet the QC file')
             #print(log_fname)
             #print(pldata_fname)
             #print(mp4_fname)
+            #print(confounds_fname)
             continue
         
         if delays_durations == None:
@@ -173,22 +181,26 @@ def main(source_data):
         duration = delays_durations[run]['duration']
 
         timestamps_fname = creat_data_file(pldata_fname)
-        print(timestamps_fname)
         _, data_fname = get_pupils_data_from_mp4(mp4_fname)
-        print(data_fname)
-        #pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
-                                                                             #timestamps_fname,
-                                                                             #start=delay,
-                                                                             #duration=duration)
 
-        #confounds_fname = f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv'
-        #pupil_data = mocet.apply_mocet(pupil_data, 
-                               #motion_params_fname=confounds_fname, 
-                               #pupil_confidence=pupil_confidence, 
-                               #motion_source='fmriprep',
-                               #polynomial_order=3)
+        pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
+                                                                             timestamps_fname,
+                                                                             start=delay,
+                                                                             duration=duration)
+
+        pupil_data = mocet.apply_mocet(pupil_data, 
+                               motion_params_fname=confounds_fname, 
+                               pupil_confidence=pupil_confidence, 
+                               motion_source='fmriprep',
+                               polynomial_order=3)
 
         # save output
 
+        print(pupil_data)
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.6f} seconds")
+        break
+
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
