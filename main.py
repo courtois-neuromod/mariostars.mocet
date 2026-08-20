@@ -109,6 +109,7 @@ def creat_data_file(pldata_fname):
             file.write("777\ttotal_time\tMovieFrame\n")
     return timestamps_fname
 
+
 def get_pupils_data_from_mp4(mp4_fname):
     capture = cv2.VideoCapture(mp4_fname)
     read, frame = capture.read()
@@ -179,7 +180,7 @@ def main(source_data):
                                                                              #timestamps_fname,
                                                                              #start=delay,
                                                                              #duration=duration)
-                                                                             
+
         #confounds_fname = f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv'
         #pupil_data = mocet.apply_mocet(pupil_data, 
                                #motion_params_fname=confounds_fname, 
