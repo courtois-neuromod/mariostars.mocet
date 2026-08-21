@@ -96,7 +96,7 @@ def creat_timestamps_file(pldata_fname):
         os.remove(timestamps_fname)
     with open(timestamps_fname, "a") as file:
         for delta in pupil_onset_deltas:
-            file.write(f"10\ttotal_time\t{delta}16.6679\n")
+            file.write(f"10\ttotal_time\t{delta}\n")
             file.write("777\ttotal_time\tMovieFrame\n")
     return timestamps_fname
 
@@ -169,7 +169,7 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
         if delays_durations == None:
             delays_durations = find_delays_and_durations(log_fname)
         stop_process = time.perf_counter()
-        print(f"find_delays_and_durations took: {stop_process - start_process}s")
+        print(f"find_delays_and_durations took: {stop_process - start_process} s")
         
         
         delay = delays_durations[run]['delay']
@@ -178,12 +178,12 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
         start_process = time.perf_counter()
         timestamps_fname = creat_timestamps_file(pldata_fname)
         stop_process = time.perf_counter()
-        print(f"creat_timestamps_file took: {stop_process - start_process}s")
+        print(f"creat_timestamps_file took: {stop_process - start_process} s")
 
         start_process = time.perf_counter()
         _, data_fname = get_pupils_data_from_mp4(mp4_fname)
         stop_process = time.perf_counter()
-        print(f"get_pupils_data_from_mp4 took: {stop_process - start_process}s")
+        print(f"get_pupils_data_from_mp4 took: {stop_process - start_process} s")
 
         start_process = time.perf_counter()
         pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
@@ -191,7 +191,7 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
                                                                              start=delay,
                                                                              duration=duration)
         stop_process = time.perf_counter()
-        print(f"clean_viewpoint_data took: {stop_process - start_process}s")
+        print(f"clean_viewpoint_data took: {stop_process - start_process} s")
         print(f'pupil_data shape: {pupil_data.shape}')
 
         start_process = time.perf_counter()
