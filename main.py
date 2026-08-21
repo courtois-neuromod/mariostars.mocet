@@ -100,9 +100,10 @@ def extract_timestamps(pldata_fname):
             timestamps.append(packet['timestamp'])
     return timestamps
 
-def creat_data_file(pldata_fname):
+def creat_timestamps_file(pldata_fname):
     timestamps = np.array(extract_timestamps(pldata_fname))
     pupil_onset_deltas = np.diff(timestamps, prepend=timestamps[0])
+    print(f"deltas shape: {pupil_onset_deltas.shape}")
     timestamps_fname = 'recording-eyetracking_timestamps.txt'
     with open(timestamps_fname, "a") as file:
         for delta in pupil_onset_deltas:
@@ -139,12 +140,12 @@ def get_pupils_data_from_mp4(mp4_fname):
         count += 1
     data_fname = f'recording-eyetracking_physio_log.csv'
     df.to_csv(data_fname, index=False)
+    print(f"pupil df shape: {df.shape}")
     return df, data_fname
 
 def main(source_data_eyetracking='', source_data_fmriprep=''):
     
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
-
     run_list = select_run_from_qc(qc_fname)
     
     for sub, ses, run, file_nb in run_list:
@@ -173,26 +174,44 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
             #print(confounds_fname)
             continue
         
+        start_process = time.perf_counter()
         if delays_durations == None:
             delays_durations = find_delays_and_durations(log_fname)
+        stop_process = time.perf_counter()
+        print(f"find_delays_and_durations took: {stop_process - start_process}s")
         
         
         delay = delays_durations[run]['delay']
         duration = delays_durations[run]['duration']
 
-        timestamps_fname = creat_data_file(pldata_fname)
-        _, data_fname = get_pupils_data_from_mp4(mp4_fname)
+        start_process = time.perf_counter()
+        timestamps_fname = creat_timestamps_file(pldata_fname)
+        stop_process = time.perf_counter()
+        print(f"creat_timestamps_file took: {stop_process - start_process}s")
 
+        start_process = time.perf_counter()
+        _, data_fname = get_pupils_data_from_mp4(mp4_fname)
+        stop_process = time.perf_counter()
+        print(f"get_pupils_data_from_mp4 took: {stop_process - start_process}s")
+
+        start_process = time.perf_counter()
         pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
                                                                              timestamps_fname,
                                                                              start=delay,
                                                                              duration=duration)
+        stop_process = time.perf_counter()
+        print(f"clean_viewpoint_data took: {stop_process - start_process}s")
+        print(f'pupil_data shape: {pupil_data.shape}')
 
+        start_process = time.perf_counter()
         pupil_data = mocet.apply_mocet(pupil_data, 
                                motion_params_fname=confounds_fname, 
                                pupil_confidence=pupil_confidence, 
                                motion_source='fmriprep',
                                polynomial_order=3)
+        stop_process = time.perf_counter()
+        print(f"apply_mocet took: {stop_process - start_process}s")
+        print(f'pupil_data shape: {pupil_data.shape}')
 
         # save output
 
@@ -203,4 +222,4 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
         break
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    main(sys.argv[1], sys.argv[2])
