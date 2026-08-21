@@ -2,6 +2,7 @@ import os
 import sys
 import mocet
 import time
+from tqdm import tqdm
 
 # IMPORT FOR THE FUNCTIONS THAT WILL BE PLACED IN UTILS
 import cv2
@@ -58,18 +59,14 @@ def find_delays_and_durations(log_fname):
 
             if "fMRI TTL 0" in message:
                 ttl_time = timestamp
-
             elif "starting eyetracking recording" in message and ttl_time is not None:
                 eyetracking_start = timestamp
-
             elif "stopping eyetracking recording" in message and eyetracking_start is not None:
                 eyetracking_stop = timestamp
-            
             elif "task - <class 'src.tasks.videogame.VideoGameMultiLevel'> :" in message and eyetracking_stop is not None:
                 run = message.split('_')[1][0:6]
 
             if run is not None:
-
                 delay = eyetracking_start - ttl_time
                 duration = eyetracking_stop - eyetracking_start
                 results[run] = {'delay': delay, 'duration': duration}
@@ -80,16 +77,6 @@ def find_delays_and_durations(log_fname):
                 run = None
 
     return results
-
-
-def read_pldata(pldata_fname):
-    packets = []
-    with open(pldata_fname, 'rb') as f:
-        unpacker = msgpack.Unpacker(f, raw=False, use_list=False)
-        for topic, payload in unpacker:
-            packet = msgpack.unpackb(payload, raw=False)
-            packets.append((topic, packet))
-    return packets
 
 def extract_timestamps(pldata_fname):
     timestamps = []
@@ -105,6 +92,8 @@ def creat_timestamps_file(pldata_fname):
     pupil_onset_deltas = np.diff(timestamps, prepend=timestamps[0])
     print(f"deltas shape: {pupil_onset_deltas.shape}")
     timestamps_fname = 'recording-eyetracking_timestamps.txt'
+    if os.path.exists(timestamps_fname):
+        os.remove(timestamps_fname)
     with open(timestamps_fname, "a") as file:
         for delta in pupil_onset_deltas:
             file.write(f"10\ttotal_time\t{delta}16.6679\n")
@@ -114,6 +103,7 @@ def creat_timestamps_file(pldata_fname):
 
 def get_pupils_data_from_mp4(mp4_fname):
     capture = cv2.VideoCapture(mp4_fname)
+    total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
     read, frame = capture.read()
 
     tracker = eyerec.PupilTracker(name='purest')
@@ -121,23 +111,24 @@ def get_pupils_data_from_mp4(mp4_fname):
     df = pd.DataFrame(columns=['diameter_px','width_px','height_px','axisRatio',
                                 'center_x','center_y', 'angle_deg', 'confidence'])
     count = 0
-    while True:
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        pupil = tracker.detect(capture.get(cv2.CAP_PROP_POS_MSEC), frame)
-           
-        df.loc[count] = {'diameter_px':np.max([pupil['size']]),
-                            'width_px':pupil['size'][0],
-                            'height_px':pupil['size'][1],
-                            'axisRatio':np.min([pupil['size']])/np.max([pupil['size']]),
-                            'center_x':pupil['center'][0],
-                            'center_y':pupil['center'][1],
-                            'angle_deg': pupil['angle'],
-                            'confidence':pupil['confidence']}
+    with tqdm(total=total_frames, desc="Detecting pupils", unit="frame", leave=False) as pbar:
+        while read:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            pupil = tracker.detect(capture.get(cv2.CAP_PROP_POS_MSEC), frame)
             
-        read, frame = capture.read()
-        if not read:
-            break
-        count += 1
+            df.loc[count] = {'diameter_px':np.max([pupil['size']]),
+                                'width_px':pupil['size'][0],
+                                'height_px':pupil['size'][1],
+                                'axisRatio':np.min([pupil['size']])/np.max([pupil['size']]),
+                                'center_x':pupil['center'][0],
+                                'center_y':pupil['center'][1],
+                                'angle_deg': pupil['angle'],
+                                'confidence':pupil['confidence']}
+                
+            read, frame = capture.read()
+            count += 1
+            pbar.update(1)
+    capture.release()
     data_fname = f'recording-eyetracking_physio_log.csv'
     df.to_csv(data_fname, index=False)
     print(f"pupil df shape: {df.shape}")
@@ -148,7 +139,7 @@ def main(source_data_eyetracking='', source_data_fmriprep=''):
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
     
-    for sub, ses, run, file_nb in run_list:
+    for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
 
         start_time = time.perf_counter()
 
