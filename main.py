@@ -3,213 +3,105 @@ import sys
 import mocet
 import time
 from tqdm import tqdm
-
-# IMPORT FOR THE FUNCTIONS THAT WILL BE PLACED IN UTILS
-import cv2
-import eyerec
 import numpy as np
-import pandas as pd
-import msgpack
 
+from analysis.utils import resolve_paths, select_run_from_qc, parse_log, creat_timestamps_file, get_pupils_data_from_mp4
 
-# FUTURE IMPORT
-# from analysis import select_run_from_qc, find_time_between_rec_and_start, creat_data_file, get_pupils_data_from_mp4
-
-
-def select_run_from_qc(qc_fname):
-    # import QC report as pd
-    df_qc = pd.read_csv(qc_fname)
-    
-    # filter row where DO_NOT_USE!=1 & empty_log == False 
-    filter_qc = ((df_qc['DO_NOT_USE']!=1)&(df_qc['empty_log']==False)) 
-    df_filter = df_qc[filter_qc]
-    
-    # list the ['file_number'] not to use
-    df_without_duplicates = (
-        df_filter
-        .groupby(['subject', 'session', 'run'])
-        .first()
-        .reset_index())
-
-    # tuple of sub-ses-run to use
-    df_grouped = df_without_duplicates.groupby(['subject', 'session', 'run', 'file_number'])
-    run_list = []
-    for keys, _ in df_grouped:
-        run_list.append(keys)
-
-    return run_list
-
-def find_delays_and_durations(log_fname):
-
-    results = {}
-    ttl_time = None
-    eyetracking_start = None
-    eyetracking_stop = None
-    run = None
-
-    with open(log_fname, "r") as f:
-        for line in f:
-            parts = line.rstrip("\n").split("\t")
-
-            if len(parts) < 3:
-                continue
-
-            timestamp = float(parts[0])
-            message = parts[2]
-
-            if "fMRI TTL 0" in message:
-                ttl_time = timestamp
-            elif "starting eyetracking recording" in message and ttl_time is not None:
-                eyetracking_start = timestamp
-            elif "stopping eyetracking recording" in message and eyetracking_start is not None:
-                eyetracking_stop = timestamp
-            elif "task - <class 'src.tasks.videogame.VideoGameMultiLevel'> :" in message and eyetracking_stop is not None:
-                run = message.split('_')[1][0:6]
-
-            if run is not None:
-                delay = eyetracking_start - ttl_time
-                duration = eyetracking_stop - eyetracking_start
-                results[run] = {'delay': delay, 'duration': duration}
-                
-                ttl_time = None
-                eyetracking_start = None
-                eyetracking_stop = None
-                run = None
-
-    return results
-
-def extract_timestamps(pldata_fname):
-    timestamps = []
-    with open(pldata_fname, 'rb') as f:
-        unpacker = msgpack.Unpacker(f, raw=False, use_list=False)
-        for topic, payload in unpacker:
-            packet = msgpack.unpackb(payload, raw=False)
-            timestamps.append(packet['timestamp'])
-    return timestamps
-
-def creat_timestamps_file(pldata_fname):
-    timestamps = np.array(extract_timestamps(pldata_fname))
-    pupil_onset_deltas = np.diff(timestamps, prepend=timestamps[0])
-    print(f"deltas shape: {pupil_onset_deltas.shape}")
-    timestamps_fname = 'recording-eyetracking_timestamps.txt'
-    if os.path.exists(timestamps_fname):
-        os.remove(timestamps_fname)
-    with open(timestamps_fname, "a") as file:
-        for delta in pupil_onset_deltas:
-            file.write(f"10\ttotal_time\t{delta}\n")
-            file.write("777\ttotal_time\tMovieFrame\n")
-    return timestamps_fname
-
-
-def get_pupils_data_from_mp4(mp4_fname):
-    capture = cv2.VideoCapture(mp4_fname)
-    total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-    read, frame = capture.read()
-
-    tracker = eyerec.PupilTracker(name='purest')
-
-    df = pd.DataFrame(columns=['diameter_px','width_px','height_px','axisRatio',
-                                'center_x','center_y', 'angle_deg', 'confidence'])
-    count = 0
-    with tqdm(total=total_frames, desc="Detecting pupils", unit="frame", leave=False) as pbar:
-        while read:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            pupil = tracker.detect(capture.get(cv2.CAP_PROP_POS_MSEC), frame)
-            
-            df.loc[count] = {'diameter_px':np.max([pupil['size']]),
-                                'width_px':pupil['size'][0],
-                                'height_px':pupil['size'][1],
-                                'axisRatio':np.min([pupil['size']])/np.max([pupil['size']]),
-                                'center_x':pupil['center'][0],
-                                'center_y':pupil['center'][1],
-                                'angle_deg': pupil['angle'],
-                                'confidence':pupil['confidence']}
-                
-            read, frame = capture.read()
-            count += 1
-            pbar.update(1)
-    capture.release()
-    data_fname = f'recording-eyetracking_physio_log.csv'
-    df.to_csv(data_fname, index=False)
-    print(f"pupil df shape: {df.shape}")
-    return df, data_fname
-
-def main(source_data_eyetracking='', source_data_fmriprep=''):
+def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='output_data'):
     
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
+
+    log_cache = []
     
     for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
 
         start_time = time.perf_counter()
 
-        if source_data_eyetracking == '' and source_data_fmriprep == '':
-            log_fname = os.path.join('source_data', 'eyetracking', sub, ses, f'{sub}_{ses}_{file_nb}.log')
-            pldata_fname = os.path.join('source_data', 'eyetracking',sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
-            mp4_fname = os.path.join('source_data','eyetracking', sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
-            confounds_fname = os.path.join('source_data','mariostarts.fmriprep',f'{sub}_{ses}_task_{run}_desc-confounds_timeseries.tsv')
-        else:
-            log_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.log')
-            pldata_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
-            mp4_fname = os.path.join(source_data_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
-            confounds_fname = os.path.join(source_data_fmriprep,sub, ses, 'func', f'{sub}_{ses}_task-mariostars_run-{run[-1]}_part-mag_desc-confounds_timeseries.tsv')
+        log_fname, pldata_fname, mp4_fname, confounds_fname, \
+            mp4_calibration_fname, pldata_calibration_fname = resolve_paths(sub, 
+                                                                            ses, 
+                                                                            run, 
+                                                                            file_nb, 
+                                                                            source_dir_eyetracking, 
+                                                                            source_dir_fmriprep
+                                                                            )
 
-        delays_durations = None
-
-        if not all(os.path.isfile(f) for f in [log_fname, pldata_fname, mp4_fname, confounds_fname]):
-            print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
-            print('Please complet the QC file')
-            #print(log_fname)
-            #print(pldata_fname)
-            #print(mp4_fname)
-            #print(confounds_fname)
+        if log_fname == None:
             continue
-        
-        start_process = time.perf_counter()
-        if delays_durations == None:
-            delays_durations = find_delays_and_durations(log_fname)
-        stop_process = time.perf_counter()
-        print(f"find_delays_and_durations took: {stop_process - start_process} s")
-        
-        
-        delay = delays_durations[run]['delay']
-        duration = delays_durations[run]['duration']
 
-        start_process = time.perf_counter()
+        if (sub, ses) not in log_cache:
+            log_cache.append((sub, ses))
+            log_dict = parse_log(log_fname)
+            # add a function to extract the number a calibration points, their positions and their onset and offset fr duration
+            os.makedirs(os.path.join(output_dir, sub, ses), exist_ok=True)
+            
+        delay = log_dict[run]['delay']
+        duration = log_dict[run]['duration']
+
         timestamps_fname = creat_timestamps_file(pldata_fname)
-        stop_process = time.perf_counter()
-        print(f"creat_timestamps_file took: {stop_process - start_process} s")
-
-        start_process = time.perf_counter()
         _, data_fname = get_pupils_data_from_mp4(mp4_fname)
-        stop_process = time.perf_counter()
-        print(f"get_pupils_data_from_mp4 took: {stop_process - start_process} s")
 
-        start_process = time.perf_counter()
+        # apply mocet
+        
         pupil_data, pupil_timestamps, pupil_confidence, _ = mocet.utils.clean_viewpoint_data(data_fname,
                                                                              timestamps_fname,
                                                                              start=delay,
                                                                              duration=duration)
-        stop_process = time.perf_counter()
-        print(f"clean_viewpoint_data took: {stop_process - start_process} s")
         print(f'pupil_data shape: {pupil_data.shape}')
 
-        start_process = time.perf_counter()
         pupil_data = mocet.apply_mocet(pupil_data, 
                                motion_params_fname=confounds_fname, 
                                pupil_confidence=pupil_confidence, 
                                motion_source='fmriprep',
                                polynomial_order=3)
-        stop_process = time.perf_counter()
-        print(f"apply_mocet took: {stop_process - start_process}s")
+        
         print(f'pupil_data shape: {pupil_data.shape}')
 
-        # save output
+        delay_cal = 0
+        duration_cal = log_dict[run]['duration_cal'] # TODO
 
-        print(pupil_data)
+        timestamps_fname_cal = creat_timestamps_file(pldata_calibration_fname)
+        _, data_fname_cal = get_pupils_data_from_mp4(mp4_calibration_fname)
+
+        # calibration
+        pupil_data_cal, pupil_timestamps_cal, pupil_confidence_cal, _ = mocet.utils.clean_viewpoint_data(data_fname_cal,
+                                                                             timestamps_fname_cal,
+                                                                             start=delay_cal,
+                                                                             duration=duration_cal)
+        
+        calibration_coordinates = log_dict[run]['coordinates'] # TODO exact from the log
+        calibration_order = np.arange(len(calibration_coordinates))
+
+        # From the log I need the calibratin coordinates and the calibration_order, checkout what it's mean exactly
+        calibrator = mocet.EyetrackingCalibration(calibration_coordinates=calibration_coordinates,
+                                                              calibration_order=calibration_order,
+                                                              repeat=True)
+        
+        calibration_timestemps = log_dict[run]['timestamps'] # TODO exact from the log, start at 0
+
+        calibration_pupils = []
+        for i in calibration_order:
+            start = calibration_timestemps[i][0]
+            end = calibration_timestemps[i][1]
+            # I need pupil timestamps relatives to the begining of the calibration
+            log_effective = np.logical_and(pupil_timestamps_cal >= start * 1000, pupil_timestamps_cal < end * 1000)
+            # I need the mp4 recorded during the calibration, preprocess as the data recorded during the task
+            calibration_pupils.append([np.nanmean(pupil_data_cal[log_effective, 0]),
+                                        np.nanmean(pupil_data_cal[log_effective, 1])])
+        calibration_pupils = np.array(calibration_pupils)
+
+        # projection
+        
+        calibrator.fit(calibration_pupils[:, 0], calibration_pupils[:, 1])
+        gaze_coordinates = calibrator.transform(pupil_data)
+
+        np.save(os.path.join(output_dir, sub, ses, 'fix', f'{sub}_{ses}_task-mariostars_{run}_gaze_coordinate.npy'), gaze_coordinates)
+        np.save(os.path.join(output_dir, sub, ses, 'fix', f'{sub}_{ses}_task-mariostars_{run}_gaze_timestamp.npy'), pupil_timestamps)
+
         end_time = time.perf_counter()
-        execution_time = end_time - start_time
-        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.6f} seconds")
+        execution_time = (end_time - start_time)/60
+        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f} min")
         break
 
 if __name__ == "__main__":
