@@ -4,6 +4,7 @@ import mocet
 import time
 from tqdm import tqdm
 import numpy as np
+from random import shuffle
 
 from analysis.utils import resolve_paths, select_run_from_qc, parse_log, creat_timestamps_file, get_pupils_data_from_mp4
 
@@ -11,7 +12,7 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='outp
     
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
-
+    run_list = shuffle(run_list)[:10]
     log_cache = []
     
     for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
@@ -34,7 +35,7 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='outp
             log_cache.append((sub, ses))
             log_dict = parse_log(log_fname)
             # add a function to extract the number a calibration points, their positions and their onset and offset fr duration
-            os.makedirs(os.path.join(output_dir, sub, ses), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, sub, ses, 'fix'), exist_ok=True)
             
         delay = log_dict[run]['delay']
         duration = log_dict[run]['duration']
