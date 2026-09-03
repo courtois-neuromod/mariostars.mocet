@@ -103,7 +103,6 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='outp
         end_time = time.perf_counter()
         execution_time = (end_time - start_time)/60
         print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f} min")
-        break
-
+       
 if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2])
