@@ -12,7 +12,8 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='outp
     
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
-    run_list = shuffle(run_list)[:10]
+    shuffle(run_list)
+    run_list = run_list[:10]
     log_cache = []
     
     for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
