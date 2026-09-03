@@ -15,8 +15,8 @@ def resolve_paths(sub, ses, run, file_nb, source_dir_eyetracking, source_dir_fmr
     pldata_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'pupil.pldata')
     mp4_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'task-mariostars_{run}', '000', 'eye0.mp4')
     confounds_fname = os.path.join(source_dir_fmriprep,sub, ses, 'func', f'{sub}_{ses}_task-mariostars_run-{run[-1]}_part-mag_desc-confounds_timeseries.tsv')
-    mp4_calibration_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'eyeTrackercalibration-{run}', '000', 'eye0.mp4')
-    pldata_calibration_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'eyeTrackercalibration-{run}', '000', 'pupil.pldata')
+    mp4_calibration_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'eyeTrackercalibration-{run[-1]}', '000', 'eye0.mp4')
+    pldata_calibration_fname = os.path.join(source_dir_eyetracking, sub, ses, f'{sub}_{ses}_{file_nb}.pupil', f'eyeTrackercalibration-{run[-1]}', '000', 'pupil.pldata')
 
     name_files = [log_fname, pldata_fname, mp4_fname, confounds_fname, mp4_calibration_fname, pldata_calibration_fname]
     if not all(os.path.isfile(f) for f in name_files):
