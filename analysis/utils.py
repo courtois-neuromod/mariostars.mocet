@@ -18,11 +18,11 @@ def resolve_paths(sub, ses, run, file_nb, source_dir_eyetracking, source_dir_fmr
 
     name_files = [pldata_fname, confounds_fname, calibration_data_fname]
     if not all(os.path.isfile(f) for f in name_files):
-            print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
-            print('Please complet the QC file')
-            print(pldata_fname)
-            print(confounds_fname)
-            print(calibration_data_fname)
+            #print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
+            #print('Please complet the QC file')
+            #print(pldata_fname)
+            #print(confounds_fname)
+            #print(calibration_data_fname)
             return [None]*3
     
     return name_files
@@ -94,15 +94,13 @@ def extract_calibration_data(fname):
     marker_pos = []
     pupil_mean_pos = []
     order = df_grp_marker['start'].rank(ascending=False)-1
-
+    order = order.astype(int).to_numpy()
     for idx, df_grp in df_grp_marker.groupby(['norm_pos_x', 'norm_pos_y']):
-        print(idx)
         marker_pos.append(idx)
         marker_filter = ((df_pupil['timestamp']>=df_grp['start'].iloc[0])&
                             (df_pupil['timestamp']<=df_grp['end'].iloc[0]))
         x_mean = df_pupil.loc[marker_filter, 'norm_pos_x'].mean()
         y_mean = df_pupil.loc[marker_filter, 'norm_pos_y'].mean()
         pupil_mean_pos.append([x_mean, y_mean])
-        print(x_mean, y_mean)
-
-    return np.asarray(marker_pos), np.asarray(order), np.asarray(pupil_mean_pos)
+    print(np.asarray(marker_pos), '\n',order, '\n',np.asarray(pupil_mean_pos))
+    return np.asarray(marker_pos), order, np.asarray(pupil_mean_pos)

@@ -8,7 +8,7 @@ from random import shuffle
 
 from analysis.utils import resolve_paths, select_run_from_qc, extract_data, extract_calibration_data
 
-def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='output_data'):
+def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
     
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
@@ -45,17 +45,19 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None, output_dir='outp
         
         calibrator = mocet.EyetrackingCalibration(calibration_coordinates=markers_pos,
                                                               calibration_order=markers_order,
-                                                              repeat=True)
+                                                              repeat=False)
    
         calibrator.fit(pupil_mean_pos[:, 0], pupil_mean_pos[:, 1])
         gaze_coordinates = calibrator.transform(pupil_data)
 
-        np.save(os.path.join(output_dir, sub, ses, 'eyetracking', f'{sub}_{ses}_task-mariostars_{run}_gaze_coordinate.npy'), gaze_coordinates)
-        np.save(os.path.join(output_dir, sub, ses, 'eyetracking', f'{sub}_{ses}_task-mariostars_{run}_gaze_timestamp.npy'), pupil_timestamps)
+        output_dir = os.path.join('output_data', sub, ses, 'eyetracking')
+        os.makedirs(output_dir, exist_ok=True)
+        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_gaze_coordinate.npy'), gaze_coordinates)
+        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_gaze_timestamp.npy'), pupil_timestamps)
 
         end_time = time.perf_counter()
         execution_time = (end_time - start_time)
-        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f} min")
+        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f}")
        
 if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2])
