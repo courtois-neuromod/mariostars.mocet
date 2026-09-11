@@ -41,7 +41,10 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
                                polynomial_order=3)
 
         # calibration
-        markers_pos, markers_order, pupil_mean_pos = extract_calibration_data(calibration_data_fname) 
+        markers_pos, markers_order, pupil_mean_pos = extract_calibration_data(calibration_data_fname)
+
+        if markers_pos == None:
+            continue
         
         calibrator = mocet.EyetrackingCalibration(calibration_coordinates=markers_pos,
                                                               calibration_order=markers_order,
