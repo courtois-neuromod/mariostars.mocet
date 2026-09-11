@@ -15,7 +15,7 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
     #shuffle(run_list)
     
     for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
-
+        print(f"Processing {sub} {ses} {run} {file_nb} ")
         start_time = time.perf_counter()
 
         pldata_fname, confounds_fname, calibration_data_fname = resolve_paths(sub, 
@@ -41,10 +41,12 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
                                polynomial_order=3)
 
         # calibration
-        markers_pos, markers_order, pupil_mean_pos = extract_calibration_data(calibration_data_fname)
+        calibration_data = extract_calibration_data(calibration_data_fname)
 
-        if markers_pos.size == 0:
+        if calibration_data is None:
             continue
+
+        markers_pos, markers_order, pupil_mean_pos = calibration_data
         
         calibrator = mocet.EyetrackingCalibration(calibration_coordinates=markers_pos,
                                                               calibration_order=markers_order,
@@ -60,7 +62,7 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
 
         end_time = time.perf_counter()
         execution_time = (end_time - start_time)
-        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f}")
+        print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f} sec")
        
 if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2])

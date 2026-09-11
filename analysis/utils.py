@@ -105,8 +105,8 @@ def extract_calibration_data(fname):
         if np.isnan(x_mean) or np.isnan(y_mean):
             print("WARNING: no pupil data for marker:", idx)
             print("Marker interval:", df_grp['start'].iloc[0], df_grp['end'].iloc[0])
-            return np.empty(1), np.empty(1), np.empty(1)
+            return None
         else:
             pupil_mean_pos.append([x_mean, y_mean])
     #print(np.asarray(marker_pos), '\n',order, '\n',np.asarray(pupil_mean_pos))
-    return np.asarray(marker_pos), order, np.asarray(pupil_mean_pos)
+    return [np.asarray(marker_pos), order, np.asarray(pupil_mean_pos)]
