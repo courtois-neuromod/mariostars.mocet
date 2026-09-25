@@ -33,13 +33,16 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
         if pupil_data.shape[0] != pupil_timestamps.shape[0]:
             print(f'Passing {sub}_{ses}_{run}_{file_nb} because the number of timestamp doesn\'t match the number of pupil observed')
             continue
+        print("RAW pupil:")
+        print(pupil_data.min(axis=0), pupil_data.max(axis=0))
 
         pupil_data = mocet.apply_mocet(pupil_data,
                                motion_params_fname=confounds_fname, 
                                pupil_confidence=pupil_confidence, 
                                motion_source='fmriprep',
                                polynomial_order=3)
-
+        print("CORRECTED pupil:")
+        print(pupil_data.min(axis=0), pupil_data.max(axis=0))
         # calibration
         calibration_data = extract_calibration_data(calibration_data_fname)
 
@@ -47,18 +50,22 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
             continue
 
         markers_pos, markers_order, pupil_mean_pos = calibration_data
-        
+        print("CALIBRATION pupil:")
+        print(pupil_mean_pos.min(axis=0), pupil_mean_pos.max(axis=0))
         calibrator = mocet.EyetrackingCalibration(calibration_coordinates=markers_pos,
                                                               calibration_order=markers_order,
                                                               repeat=False)
-   
+        print("CALIBRATION gaze:")
+        print(markers_pos.min(axis=0), markers_pos.max(axis=0))
         calibrator.fit(pupil_mean_pos[:, 0], pupil_mean_pos[:, 1])
         gaze_coordinates = calibrator.transform(pupil_data)
-
+        print("FINAL gaze:")
+        print(gaze_coordinates.min(axis=0), gaze_coordinates.max(axis=0))
+        break
         output_dir = os.path.join('output_data', sub, ses, 'eyetracking')
         os.makedirs(output_dir, exist_ok=True)
-        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_gaze_coordinate.npy'), gaze_coordinates)
-        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_gaze_timestamp.npy'), pupil_timestamps)
+        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_{file_nb}_gaze_coordinate.npy'), gaze_coordinates)
+        np.save(os.path.join(output_dir, f'{sub}_{ses}_task-mariostars_{run}_{file_nb}_gaze_timestamp.npy'), pupil_timestamps)
 
         end_time = time.perf_counter()
         execution_time = (end_time - start_time)
