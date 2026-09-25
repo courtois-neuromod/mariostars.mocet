@@ -18,7 +18,7 @@ def resolve_paths(sub, ses, run, file_nb, source_dir_eyetracking, source_dir_fmr
 
     name_files = [pldata_fname, confounds_fname, calibration_data_fname]
     if not all(os.path.isfile(f) for f in name_files):
-            #print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
+            print(f'ERROR with not existing files: subject:{sub}, session:{ses}, file_nbfile number:{file_nb} and run:{run}')
             #print('Please complet the QC file')
             #print(pldata_fname)
             #print(confounds_fname)

@@ -4,7 +4,7 @@ import mocet
 import time
 from tqdm import tqdm
 import numpy as np
-from random import shuffle
+import argparse
 
 from analysis.utils import resolve_paths, select_run_from_qc, extract_data, extract_calibration_data
 
@@ -13,7 +13,7 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
     qc_fname = os.path.join('source_data', 'neuromod_eyetrack_mariostars_QC.csv')
     run_list = select_run_from_qc(qc_fname)
     #shuffle(run_list)
-    
+    print(source_dir_eyetracking, source_dir_fmriprep)
     for sub, ses, run, file_nb in tqdm(run_list,desc="Processing runs",position=0):
         print(f"Processing {sub} {ses} {run} {file_nb} ")
         start_time = time.perf_counter()
@@ -27,7 +27,6 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
                                                                             )
         if pldata_fname == None:
             continue
-
         pupil_data, pupil_timestamps, pupil_confidence, _ = extract_data(pldata_fname)
 
         if pupil_data.shape[0] != pupil_timestamps.shape[0]:
@@ -62,4 +61,9 @@ def main(source_dir_eyetracking=None, source_dir_fmriprep=None):
         print(f"Time taken for {sub}, {ses}, {run}: {execution_time:.2f} sec")
        
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sourcedata_fmriprep", required=False, help="Path to the fmriprep data")
+    parser.add_argument("--sourcedata_eyetracking",required=False, help="Path to the eyetracking data")
+    args = parser.parse_args()
+
+    main(args.sourcedata_fmriprep, args.sourcedata_eyetracking)
